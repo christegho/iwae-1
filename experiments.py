@@ -45,6 +45,7 @@ def post_experiment(directory_name, dataset, model):
     q_weights = iwae.get_first_q_layer_weights(model)
     p_weights = iwae.get_last_p_layer_weights(model)
 
+
     import matplotlib
     matplotlib.use('Agg')
     import matplotlib.pyplot as plt
@@ -117,7 +118,7 @@ def training_experiment(directory_name, latent_units, hidden_units_q, hidden_uni
 
     def checkpoint1to8(i, dataset, model, optimizer, srng):
         optimizer.learning_rate = 1e-4*round(10.**(1-(i-1)/7.), 1)
-        model = train.train(model=model, dataset=dataset, optimizer=optimizer,
+        model = train.train(directory_name=directory_name, model=model, dataset=dataset, optimizer=optimizer,
                             minibatch_size=20, n_epochs=3**(i-1), srng=srng,
                             num_samples=k, model_type=model_type)
         return model, optimizer, srng
@@ -135,7 +136,7 @@ def training_experiment(directory_name, latent_units, hidden_units_q, hidden_uni
         save_checkpoint(directory_name, 0, model, optimizer, srng)
         loaded_checkpoint = 0
 
-    for i in range(loaded_checkpoint+1, 9):
+    for i in range(loaded_checkpoint+1, 2): #chris 9
         model, optimizer, srng = checkpoint1to8(i, dataset, model, optimizer, srng)
         save_checkpoint(directory_name, i, model, optimizer, srng)
     loaded_checkpoint = 8
@@ -168,7 +169,7 @@ def experiment2(directory_name, dataset='MNIST', direction='vae_to_iwae'):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Run VAE/IWAE training experiments.')
     parser.add_argument('--exp', '-e', choices=['train', 'vae_to_iwae', 'iwae_to_vae'], default='train')
-    parser.add_argument('--layers', '-l', type=int, choices=[1, 2], default=1)
+    parser.add_argument('--layers', '-l', type=int, choices=[1, 2, 3, 4], default=1) #ct506
     parser.add_argument('--model', '-m', choices=['vae', 'iwae'], default='vae')
     parser.add_argument('--k', '-k', type=int, default=1)
     parser.add_argument('--dataset', '-d', choices=['MNIST', 'OMNI', 'BinFixMNIST'], default='MNIST')
@@ -183,6 +184,16 @@ if __name__ == '__main__':
         latent_units = [100, 50]
         hidden_units_q = [[200, 200], [100, 100]]
         hidden_units_p = [[100, 100], [200, 200]]
+    #-------ct506
+    elif args.layers == 3:
+        latent_units = [100, 100, 50]
+        hidden_units_q = [[200, 200], [100, 100], [100, 100]]
+        hidden_units_p = [[100, 100], [100, 100], [200, 200]]
+    elif args.layers == 4:
+        latent_units = [100, 100, 100, 50]
+        hidden_units_q = [[200, 200], [100, 100], [100, 100], [100, 100]]
+        hidden_units_p = [[100, 100], [100, 100], [100, 100], [200, 200]]
+    #-------ct506
     directory_name = directory_to_store(**args.__dict__)
     if not os.path.exists(directory_name):
         os.makedirs(directory_name)

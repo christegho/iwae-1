@@ -137,6 +137,7 @@ class IWAE:
             log_weights += layer_p.log_likelihood_samplesIx(prev_sample, next_sample) -\
                            layer_q.log_likelihood_samplesIx(next_sample, prev_sample)
         log_weights += self.prior.log_likelihood_samples(q_samples[-1])
+	self.log_weights = log_weights
         return log_weights
 
     def gradIminibatch_srng(self, x, srng, num_samples, model_type='iwae'):
@@ -147,6 +148,7 @@ class IWAE:
         log_ws = self.log_weightsIq_samples(q_samples)
 
         log_ws_matrix = log_ws.reshape((x.shape[0], num_samples))
+
         log_ws_minus_max = log_ws_matrix - T.max(log_ws_matrix, axis=1, keepdims=True)
         ws = T.exp(log_ws_minus_max)
         ws_normalized = ws / T.sum(ws, axis=1, keepdims=True)
@@ -160,7 +162,7 @@ class IWAE:
                                              param,
                                              T.grad(T.sum(log_ws)/T.cast(num_samples, log_ws.dtype), param)
                                             )
-                                            for param in self.params])
+                                            for param in self.params]), ws_normalized_vector
         else:
             print "Training an IWAE"
             return collections.OrderedDict([(
@@ -169,19 +171,27 @@ class IWAE:
                                                 T.grad(T.dot(log_ws, dummy_vec), param),
                                                 replace={dummy_vec: ws_normalized_vector})
                                             )
-                                            for param in self.params])
+                                            for param in self.params]), ws_normalized_vector
 
     def log_marginal_likelihood_estimate(self, x, num_samples, srng):
         num_xs = x.shape[0]
         # rep_x = T.extra_ops.repeat(x, num_samples, axis=0)
         rep_x = t_repeat(x, num_samples, axis=0)
         samples = self.q_samplesIx_srng(rep_x, srng)
+        log_ws = self.log_weightsIq_samples(samples)
+        log_ws_matrix = T.reshape(log_ws, (num_xs, num_samples))
+        log_marginal_estimate = log_mean_exp(log_ws_matrix, axis=1)
+        return log_marginal_estimate
+
+    def get_log_ws(self, x, srng, num_samples):
+        num_xs = x.shape[0]
+        rep_x = t_repeat(x, num_samples, axis=0)
+        samples = self.q_samplesIx_srng(rep_x, srng)
 
         log_ws = self.log_weightsIq_samples(samples)
         log_ws_matrix = T.reshape(log_ws, (num_xs, num_samples))
         log_marginal_estimate = log_mean_exp(log_ws_matrix, axis=1)
-
-        return log_marginal_estimate
+        return log_ws_matrix, log_marginal_estimate
 
     def first_q_layer_weights_np(self):
         return self.q_layers[0].first_linear_layer_weights_np()
